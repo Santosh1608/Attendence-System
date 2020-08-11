@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{%block head%}
+<title>TeacherRegister</title>
+{%endblock%}
+{% block body %}
+<div class="container back">
+    <h4 style="margin-top: 20px;"> Student Register</h4>
+    <form method=post action="/registerS">
+        <dl>
+            <dt><label for="username">Username</label></dt>
+            <dd><input class="form-control" id="username" name="name" type="text" value="" required></dd>
+
+            <dt><label for="usno">Enter USN</label></dt>
+            <dd><input class="form-control" id="usno" name="usn" type="text" value="" required></dd>
+
+            <dt><label for="classn">Enter classname</label></dt>
+            <dd><input class="form-control" id="classn" name="classname" type="text" value="" required></dd>
+
+        </dl>
+        <p><input class="btn btn-primary" type=submit value=Register>
+    </form>
+
+    {%endblock%}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

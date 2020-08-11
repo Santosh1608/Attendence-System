@@ -1,0 +1,26 @@
+{% extends 'base.html'%}
+{% block head%}
+<title>Attendence</title>
+{% endblock%}
+{% block body %}
+    {% if dates %}
+      {%for date in dates %}
+
+       <div class="card" style="width: 18rem;">
+          <div class="card-body">
+             <h5 class="card-title">Day{{dates.index(date)+1}}</h5>
+             <h6 class="card-subtitle mb-2 text-muted">{{date["date"]}}</h6>
+             <p class="card-text">You can view the attendence by giving ur class name and subject code. click on below link</p>
+              <a href="/show/{{date['date']}}" class="card-link">check ur attendence</a>
+          </div>
+       </div>
+      {%endfor%}
+    {%else%}
+    <div class="center">
+        <h1>No attendence to show</h1>
+        <p class="text-center"><a href="/give"><p>Please give attendence to students by logging as teacher</p></a></p>
+    </div>
+
+    {%endif%}
+
+{% endblock%}
