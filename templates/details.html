@@ -3,7 +3,7 @@
 <title>Attendence_details</title>
 {%endblock%}
 {% block body %}
-<div class="container">
+<div class="container back" style="margin-top:50px; width:500px;height:300px">
     <form method=POST action="/show/{{date}}">
         <dl>
             <dt><label for="classname">classname</label></dt>
@@ -12,9 +12,9 @@
             <dt><label for="sub">subjectcode</label></dt>
             <dd><input class="form-control" id="sub" name="subject" type="text" value="" required></dd>
         </dl>
-        <p><input class="btn btn-primary" type=submit value=Submit>
+        <p><input class="btn btn-primary" type=submit value=Submit></p>
     </form>
-
+</div>
     {%endblock%}
 
 

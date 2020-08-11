@@ -135,8 +135,8 @@ def registerT():
                 return redirect('/')
         else:
             return render_template('RegisterT.html')
-    except Exception as e:
-        flash("Somthing went wrong try agian", e)
+    except:
+        flash("Something went wrong try again")
         return render_template('registerT.html')
 
 
@@ -148,7 +148,7 @@ def registerS():
             c, conn = connection()
             x = c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(request.form["usn"]))
             if x > 0:
-                flash("Username already exist")
+                flash("Student USN already exist")
                 return redirect('/registerS')
             else:
                 c.execute("INSERT INTO student_data (name,usn,classname) VALUES ('{}','{}','{}')".
@@ -194,9 +194,10 @@ def gotdate(date):
             c.execute("SELECT * FROM students WHERE date = '{}' and classname = '{}' and subject = '{}'"
                       .format(date, request.form["classname"], request.form["subject"]))
             attendence = c.fetchall()
+            print(attendence)
             return render_template("attendence.html", attendence=attendence, flag="show")
         except Exception as e:
-            flash("Something went wrong")
+            flash("Something went wrong", e)
             return redirect("/")
 
 
@@ -273,6 +274,7 @@ def edit():
 
 
 @app.route('/edit/<string:date>')
+@login_required
 def edit_attendence(date):
     try:
         email = session["email"]
@@ -285,6 +287,7 @@ def edit_attendence(date):
 
 
 @app.route('/edit/<string:date>', methods=['POST'])
+@login_required
 def final_edit(date):
     try:
         email = session["email"]
@@ -307,30 +310,33 @@ def final_edit(date):
 
 
 @app.route('/show_students')
+@login_required
 def show_students():
     try:
         c, conn = connection()
         c.execute("SELECT * FROM student_data")
         students_list = c.fetchall()
-        return render_template('remove_students.html', students=students_list)
+        return render_template('remove_students.html', students=students_list, search="student")
     except:
         flash("Something went wrong try again later")
         return redirect('/dash')
 
 
 @app.route('/show_teachers')
+@login_required
 def show_teachers():
     try:
         c, conn = connection()
         c.execute("SELECT * FROM teachers where secret_key = '{}'".format("abcd"))
         teachers_list = c.fetchall()
-        return render_template('remove_teachers.html', teachers=teachers_list)
+        return render_template('remove_teachers.html', teachers=teachers_list, search="teacher")
     except:
         flash("Something went wrong try again later")
         return redirect('/dash')
 
 
 @app.route('/remove_student/<string:usn>')
+@login_required
 def remove_student(usn):
     try:
         c, conn = connection()
@@ -349,6 +355,7 @@ def remove_student(usn):
 
 
 @app.route('/remove_teacher/<string:email>')
+@login_required
 def remove_teacher(email):
     print("teacher")
     try:
@@ -367,6 +374,42 @@ def remove_teacher(email):
         return redirect('/dashboard')
 
 
+@app.route('/search', methods=['POST'])
+def STsearch():
+    try:
+        try:
+            email = request.form["email"].upper()
+            try:
+                c, conn = connection()
+                x = c.execute("SELECT * FROM teachers WHERE email = '{}' and secret_key!='{}'".format(email, "super"))
+                if x > 0:
+                    teacher = c.fetchall()
+                    return render_template('remove_teachers.html', teachers=teacher)
+                else:
+                    flash("No teacher with an email {}".format(email))
+                    return redirect('/show_teachers')
+            except:
+                flash("Something wrong with database server please try again")
+                return redirect('/show_teachers')
+        except:
+            usn = request.form["usn"]
+            try:
+                c, conn = connection()
+                x = c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(usn))
+                if x > 0:
+                    student = c.fetchall()
+                    return render_template('remove_students.html', students=student)
+                else:
+                    flash("No Student with an USN {}".format(usn))
+                    return redirect('/show_students')
+            except:
+                flash("Something wrong with database server please try again")
+                return redirect('/show_students')
+    except:
+        flash("Something went wrong try again")
+        return redirect('/show_students')
+
+
 if __name__ == "__main__":
     app.secret_key = "asfeiuwfbiwe132298423489"
-    app.run(debug=True, port=8000)
+    app.run(debug=True, port=5000)
