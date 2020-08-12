@@ -2,15 +2,15 @@ from flask import Flask, render_template, request, flash, redirect, session
 from passlib.hash import sha256_crypt
 from database import connection
 from functools import wraps
-
 app = Flask(__name__)
+app.secret_key = "asfeiuwfbiwe132298423489"
 
 
 def login_required(f):
     @wraps(f)
-    def wrap():
+    def wrap(*args, **kwargs):
         if 'email' in session:
-            return f()
+            return f(*args, **kwargs)
         else:
             flash("login as teacher first")
             return redirect('/loginT')
@@ -34,28 +34,29 @@ def loginT():
     try:
         if request.method == 'POST':
             c, conn = connection()
-            x = c.execute("SELECT * FROM teachers WHERE email = '{}'".
-                          format(request.form["email"].upper()))
-            if x == 0:
+            c.execute("SELECT * FROM teachers WHERE email = '{}'".
+                      format(request.form["email"]))
+            x = c.fetchall()
+            if len(x) == 0:
                 flash("Please register first")
                 return redirect('/registerT')
             else:
+                c.execute("SELECT * FROM teachers WHERE email = '{}'".
+                          format(request.form["email"]))
                 data = c.fetchone()
                 if sha256_crypt.verify(request.form['password'], data['password']):
                     try:
                         c, conn = connection()
-                        c.execute("SELECT * FROM teachers WHERE email = '{}'".format(request.form["email"]))
-                        data = c.fetchone()
                         if data['secret_key'] != "super":
                             session["logged_In"] = True
                             session["email"] = request.form["email"]
-                            session["name"] = data["name"].lower()
+                            session["name"] = data["name"]
                             flash("Succesfully logged In")
                             return redirect('/dashboard')
                         else:
                             session["logged_In"] = True
                             session["email"] = request.form["email"]
-                            session["name"] = data["name"].lower()
+                            session["name"] = data["name"]
                             session["hod"] = True
                             flash("Succesfully logged In as admin ")
                             return redirect('/dashboard')
@@ -79,8 +80,10 @@ def registerT():
             if request.form["secret_key"] == "abcd":
                 try:
                     c, conn = connection()
-                    flag = c.execute("SELECT * FROM teachers WHERE email = '{}'".format(request.form["email"].upper()))
-                    if flag > 0:
+                    c.execute("SELECT * FROM teachers WHERE email = '{}'".format(request.form["email"]))
+                    flag = c.fetchall()
+
+                    if len(flag) > 0:
                         flash("Sorry entered email is already existed")
                         return redirect("/registerT")
                     else:
@@ -88,8 +91,8 @@ def registerT():
                         c.execute(
                             """INSERT INTO teachers (name,password,email,subject,classname,secret_key) 
                             VALUES ('{}','{}','{}','{}','{}','{}')"""
-                                .format(request.form["name"].upper(), password, request.form["email"].upper(),
-                                        request.form["subject"].upper(), request.form["classname"].upper(),
+                                .format(request.form["name"], password, request.form["email"],
+                                        request.form["subject"], request.form["classname"],
                                         request.form["secret_key"]))
                         conn.commit()
                         session["logged_In"] = True
@@ -104,10 +107,11 @@ def registerT():
             elif request.form["secret_key"] == "super":
                 try:
                     c, conn = connection()
-                    flag = c.execute(
+                    c.execute(
                         "SELECT * FROM teachers WHERE secret_key = '{}' or email = '{}'"
-                            .format(request.form["secret_key"], request.form["email"].upper()))
-                    if flag > 0:
+                            .format(request.form["secret_key"], request.form["email"]))
+                    flag = c.fetchall()
+                    if len(flag) > 0:
                         flash("Super user account is already created")
                         return redirect("/registerT")
                     else:
@@ -115,8 +119,8 @@ def registerT():
                         c.execute(
                             """INSERT INTO teachers (name,password,email,subject,classname,secret_key) 
                             VALUES ('{}','{}','{}','{}','{}','{}')"""
-                                .format(request.form["name"].upper(), password, request.form["email"].upper(),
-                                        request.form["subject"].upper(), request.form["classname"].upper(),
+                                .format(request.form["name"], password, request.form["email"],
+                                        request.form["subject"], request.form["classname"],
                                         request.form["secret_key"]))
                         conn.commit()
                         session["logged_In"] = True
@@ -146,8 +150,9 @@ def registerS():
     try:
         if request.method == 'POST':
             c, conn = connection()
-            x = c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(request.form["usn"]))
-            if x > 0:
+            c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(request.form["usn"]))
+            x = c.fetchall()
+            if len(x) > 0:
                 flash("Student USN already exist")
                 return redirect('/registerS')
             else:
@@ -176,11 +181,12 @@ def logout():
 def show():
     try:
         c, conn = connection()
-        c.execute("SELECT MIN(uid) AS uid,DATE_FORMAT(date, '%y-%m-%d') AS date FROM students GROUP BY date")
+        c.execute("SELECT MIN(uid) AS uid,date FROM students GROUP BY date")
         dates = c.fetchall()
+        print(dates)
         return render_template('show_attendence.html', dates=dates)
-    except:
-        flash("something went wrong")
+    except Exception as e:
+        flash("something went wrong", e)
         return redirect('/')
 
 
@@ -194,7 +200,6 @@ def gotdate(date):
             c.execute("SELECT * FROM students WHERE date = '{}' and classname = '{}' and subject = '{}'"
                       .format(date, request.form["classname"], request.form["subject"]))
             attendence = c.fetchall()
-            print(attendence)
             return render_template("attendence.html", attendence=attendence, flag="show")
         except Exception as e:
             flash("Something went wrong", e)
@@ -217,10 +222,12 @@ def give():
                   .format(classname))
         students_data = c.fetchall()
         if request.method == 'POST':
-            x = c.execute("SELECT * FROM students WHERE date = curdate() and subject = '{}' and classname = '{}' "
-                          .format(subject, classname))
-            if x > 0:
-                flash("U have already given attendence today")
+            c.execute("SELECT * FROM students WHERE date = CURRENT_DATE and subject = '{}' and classname = '{}' "
+                      .format(subject, classname))
+            x = c.fetchall()
+
+            if len(x) > 0:
+                flash("Attendence is already taken")
                 return redirect('/dashboard')
             else:
                 for i, student in enumerate(students_data):
@@ -230,11 +237,11 @@ def give():
                     classname = student["classname"]
                     if "present" in check:
                         c.execute(
-                            "INSERT INTO students (usn,name,classname,present,subject,date,teacheremail,teachername) VALUES ('{}','{}','{}',{},'{}',curdate(),'{}','{}')"
+                            "INSERT INTO students (usn,name,classname,present,subject,date,teacheremail,teachername) VALUES ('{}','{}','{}',{},'{}',CURRENT_DATE,'{}','{}')"
                                 .format(usn, name, classname, 1, subject, teacheremail, teachername))
                     else:
                         c.execute(
-                            "INSERT INTO students (usn,name,classname,present,subject,date,teacheremail,teachername) VALUES ('{}','{}','{}',{},'{}',curdate(),'{}','{}')"
+                            "INSERT INTO students (usn,name,classname,present,subject,date,teacheremail,teachername) VALUES ('{}','{}','{}',{},'{}',CURRENT_DATE,'{}','{}')"
                                 .format(usn, name, classname, 0, subject, teacheremail, teachername))
                 conn.commit()
                 flash("attendence submitted")
@@ -265,7 +272,7 @@ def give():
 def edit():
     try:
         c, conn = connection()
-        c.execute("SELECT MIN(uid) AS uid,DATE_FORMAT(date, '%y-%m-%d') AS date FROM students GROUP BY date")
+        c.execute("SELECT MIN(uid) AS uid,date FROM students GROUP BY date")
         dates = c.fetchall()
         return render_template('edit_attendence.html', dates=dates)
     except:
@@ -340,8 +347,9 @@ def show_teachers():
 def remove_student(usn):
     try:
         c, conn = connection()
-        x = c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(usn))
-        if x > 0:
+        c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(usn))
+        x = c.fetchall()
+        if len(x) > 0:
             c.execute("DELETE FROM student_data where usn = '{}'".format(usn))
             conn.commit()
             flash('U have succesfully unregistered student')
@@ -357,11 +365,11 @@ def remove_student(usn):
 @app.route('/remove_teacher/<string:email>')
 @login_required
 def remove_teacher(email):
-    print("teacher")
     try:
         c, conn = connection()
-        x = c.execute("SELECT * FROM teachers WHERE email = '{}'".format(email))
-        if x > 0:
+        c.execute("SELECT * FROM teachers WHERE email = '{}'".format(email))
+        x = c.fetchall()
+        if len(x) > 0:
             c.execute("DELETE FROM teachers where email = '{}'".format(email))
             conn.commit()
             flash('U have succesfully unregistered teacher')
@@ -378,13 +386,13 @@ def remove_teacher(email):
 def STsearch():
     try:
         try:
-            email = request.form["email"].upper()
+            email = request.form["email"]
             try:
                 c, conn = connection()
-                x = c.execute("SELECT * FROM teachers WHERE email = '{}' and secret_key!='{}'".format(email, "super"))
-                if x > 0:
-                    teacher = c.fetchall()
-                    return render_template('remove_teachers.html', teachers=teacher)
+                c.execute("SELECT * FROM teachers WHERE email = '{}' and secret_key!='{}'".format(email, "super"))
+                x = c.fetchall()
+                if len(x) > 0:
+                    return render_template('remove_teachers.html', teachers=x)
                 else:
                     flash("No teacher with an email {}".format(email))
                     return redirect('/show_teachers')
@@ -395,10 +403,10 @@ def STsearch():
             usn = request.form["usn"]
             try:
                 c, conn = connection()
-                x = c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(usn))
-                if x > 0:
-                    student = c.fetchall()
-                    return render_template('remove_students.html', students=student)
+                c.execute("SELECT * FROM student_data WHERE usn = '{}'".format(usn))
+                x = c.fetchall()
+                if len(x) > 0:
+                    return render_template('remove_students.html', students=x)
                 else:
                     flash("No Student with an USN {}".format(usn))
                     return redirect('/show_students')
@@ -411,5 +419,4 @@ def STsearch():
 
 
 if __name__ == "__main__":
-    app.secret_key = "asfeiuwfbiwe132298423489"
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8000)
