@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, flash, redirect, session
 from passlib.hash import sha256_crypt
 from database import connection
 from functools import wraps
+
 app = Flask(__name__)
 app.secret_key = "asfeiuwfbiwe132298423489"
 
@@ -416,6 +417,66 @@ def STsearch():
     except:
         flash("Something went wrong try again")
         return redirect('/show_students')
+
+
+@app.route('/forget_password', methods=["POST","GET"])
+def forget_password():
+    global otp_num
+    if request.method == "POST":
+        try:
+            email = request.form["email"]
+            try:
+                c, conn = connection()
+                c.execute("SELECT * FROM teachers WHERE email = '{}'".format(email))
+                data = c.fetchall()
+                if len(data) <= 0:
+                    flash("entered email does not exist")
+                    return redirect('/loginT')
+                else:
+                    from mail import send_mail
+                    sent, otp_num = send_mail(email)
+                    if sent:
+                        flash('please enter the otp')
+                        return render_template('password_reset.html', otp="otp")
+                    else:
+                        flash('otp is not sent try again')
+                        return redirect('/loginT')
+            except:
+                flash("Something went wrong with database try again")
+                return redirect('/loginT')
+        except:
+            print("email")
+            otp = int(request.form["otp"])
+            if otp == otp_num:
+                flash("please reset ur password")
+                return render_template('reset_password.html')
+            else:
+                flash("entered otp is incorrect try again by clicking forget password")
+                return redirect('/loginT')
+
+    else:
+        return render_template('password_reset.html', otp="nototp")
+
+
+@app.route('/update_password', methods=['POST'])
+def update_password():
+    try:
+        c, conn = connection()
+        c.execute("SELECT * FROM teachers WHERE email = '{}'".format(request.form['email']))
+        data = c.fetchall()
+        if len(data) > 0:
+            password = sha256_crypt.encrypt(request.form["new_password"])
+            c.execute("UPDATE teachers SET password = '{}' WHERE email = '{}'"
+                      .format(password, request.form["email"]))
+            conn.commit()
+            flash("password updated successfully")
+            return redirect('/loginT')
+        else:
+            flash("entered email does not exist")
+            return redirect('/loginT')
+    except:
+        flash("Something went wrong with database try again")
+        return redirect("/loginT")
 
 
 if __name__ == "__main__":
